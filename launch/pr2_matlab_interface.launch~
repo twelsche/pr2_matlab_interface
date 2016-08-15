@@ -1,0 +1,19 @@
+<launch>
+
+   <!--  <include file="$(find pr2_moveit_config)/launch/move_group.launch">
+    </include> -->
+  <include file="$(find pr2_moveit_config)/launch/move_group.launch" />
+
+
+  <!-- The semantic description that corresponds to the URDF -->
+  <!-- <param name="robot_description_semantic" textfile="$(find pr2_moveit_config)/config/pr2.srdf"/> -->
+
+  <param name="robot_description_semantic" command="$(find xacro)/xacro.py '$(find pr2_description)/robots/pr2.urdf.xacro'" />
+
+
+
+	
+  <!-- The controller node for the Communication with MatLab and the motion execution -->
+<node name="pr2_matlab_interface" pkg="pr2_matlab_interface" type="pr2_matlab_interface_node" output="screen" />
+
+</launch>
