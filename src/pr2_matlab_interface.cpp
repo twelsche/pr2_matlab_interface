@@ -34,16 +34,17 @@ PR2MatlabBridgeClass::PR2MatlabBridgeClass(ros::NodeHandle n)
   // Start subscriber for the gripperState 
   OCGripper_sub = n.subscribe("/PRCommunicator/OCGripper", 1, &PR2MatlabBridgeClass::ChangeGripperStateCallback,this);
   // Start subscriber for the Trajectory
-  // Precomp_traj_sub = n.subscribe("/PRCommunicator/Precomp_Trajectory", 1, &PR2MatlabBridgeClass::PrecompTrajCallback,this);   
+  Precomp_traj_sub = n.subscribe("/PRCommunicator/Precomp_Trajectory", 1, &PR2MatlabBridgeClass::PrecompTrajCallback,this);   
   // Start subscriber for the Requests
   PR2Request_sub = n.subscribe("/PRCommunicator/Request", 1, &PR2MatlabBridgeClass::RequestsCallback,this);
 
   // Subscriber for the object tracking
   std::vector<std::string> model_names;
   //model_names.push_back("bowl");
-  model_names.push_back("muesli2");
-  model_names.push_back("KallaxDrawer2");
-  model_names.push_back("Kallax_Tuer");
+  // model_names.push_back("muesli2");
+  // model_names.push_back("KallaxDrawer2");
+  // model_names.push_back("Kallax_Tuer");
+  model_names.push_back("DoorModel");
 
   for (std::vector<std::string>::iterator it = model_names.begin(); it != model_names.end();it++) {
     //pose_subscribers_[*it] = n.subscribe<geometry_msgs::PoseStamped>("/simtrack/" + *it, 50,boost::bind(&PR2MatlabBridgeClass::callObjectHandling,this,_1,*it));
@@ -86,10 +87,14 @@ void PR2MatlabBridgeClass::update()
   // Find and publish new Gripper Pose every xt seconds
   
     tf::StampedTransform transform;
-    listener.lookupTransform("/odom_combined", "/r_wrist_roll_link", ros::Time(0), transform);
+    // listener.lookupTransform("/odom_combined", "/r_wrist_roll_link", ros::Time(0), transform);
+    listener.lookupTransform("/map", "/r_wrist_roll_link", ros::Time(0), transform);
 
     // group_->getCurrentPose and pose known to tf differ in sign in quaternion for certain poses.  
-    geometry_msgs::PoseStamped gripper_position = group_->getCurrentPose();
+    geometry_msgs::PoseStamped gripper_position;// = group_->getCurrentPose();
+    gripper_position.pose.position.x = transform.getOrigin().x();
+    gripper_position.pose.position.y = transform.getOrigin().y();
+    gripper_position.pose.position.z = transform.getOrigin().z();
     gripper_position.pose.orientation.x  = transform.getRotation().x();
     gripper_position.pose.orientation.y  = transform.getRotation().y();
     gripper_position.pose.orientation.z  = transform.getRotation().z();
@@ -103,8 +108,8 @@ void PR2MatlabBridgeClass::update()
     //get the current transform for robot base
     try
     {
-    listener.lookupTransform("odom_combined", "torso_lift_link",
-                              ros::Time(0), transformTorso_);
+    listener.lookupTransform("odom_combined", "torso_lift_link", ros::Time(0), transformTorso_);
+      // listener.lookupTransform("/map", "/torso_lift_link", ros::Time(0), transformTorso_);      
     }
     catch (tf::TransformException ex)
     {
@@ -150,13 +155,13 @@ void PR2MatlabBridgeClass::PrecompTrajCallback(const geometry_msgs::PoseArray ms
   std::vector<geometry_msgs::Pose> torsoPoints;
   tf::Transform offset;
   offset.setIdentity();
-  tf::Vector3 translationOff(0.05,0.0,0.0);
+  tf::Vector3 translationOff(0.0,0.0,0.0);
   offset.setOrigin(translationOff);
   tf::Transform gripperOffset;
   gripperOffset.setIdentity();
   tf::Vector3 gripperTranslationOff(-0.18,0.0,0.0);
   gripperOffset.setOrigin(gripperTranslationOff);
-  for (unsigned int j = 0 ; j < traj_length ; j++)
+  for (unsigned int j = 2 ; j < traj_length ; j++)
   {
     if (j % 2)
     {
@@ -201,10 +206,21 @@ void PR2MatlabBridgeClass::PrecompTrajCallback(const geometry_msgs::PoseArray ms
   fullBodyTraj_msg.joint_trajectory.joint_names = trajectory_msg.joint_trajectory.joint_names;
   fullBodyTraj_msg.joint_trajectory.joint_names.push_back("torso_lift_joint");
   fullBodyTraj_msg.joint_trajectory.header = msg.header;
-  fullBodyTraj_msg.multi_dof_joint_trajectory.header.frame_id = "odom_combined";
+  fullBodyTraj_msg.joint_trajectory.header.frame_id = "map";
+  fullBodyTraj_msg.multi_dof_joint_trajectory.header.frame_id = "map";//"odom_combined";
   fullBodyTraj_msg.multi_dof_joint_trajectory.joint_names.push_back("world_joint");
   traj_length = trajectory_msg.joint_trajectory.points.size()-1;
 
+
+
+  trajectory_msgs::MultiDOFJointTrajectoryPoint basePoint;
+  geometry_msgs::Transform transform;
+  transform.translation.x = torsoPoints[0].position.x;//+ offset.getOrigin().getX()
+  transform.translation.y = torsoPoints[0].position.y;//+ offset.getOrigin().getY()
+  transform.translation.z = 0; 
+  transform.rotation = torsoPoints[0].orientation; 
+  basePoint.transforms.push_back(transform);
+  fullBodyTraj_msg.multi_dof_joint_trajectory.points.push_back(basePoint);
   for (int i = 0; i < traj_length;i++)
   {
     // Torso_lift_link trajectory
@@ -225,6 +241,20 @@ void PR2MatlabBridgeClass::PrecompTrajCallback(const geometry_msgs::PoseArray ms
     basePoint.transforms.push_back(transform);
     fullBodyTraj_msg.multi_dof_joint_trajectory.points.push_back(basePoint); 
   }
+
+
+
+  trajectory_msgs::JointTrajectoryPoint jointPoint;
+    jointPoint = trajectory_msg.joint_trajectory.points[traj_length-1];
+    // add torso position
+    jointPoint.positions.push_back(torsoPoints[traj_length-1].position.z-0.8);
+    fullBodyTraj_msg.joint_trajectory.points.push_back(jointPoint);
+
+    ROS_INFO("joint_trajectory size: %lu",fullBodyTraj_msg.joint_trajectory.points.size());
+    ROS_INFO("multi_dof_joint_trajectory size: %lu",fullBodyTraj_msg.multi_dof_joint_trajectory.points.size());
+
+
+
   // Build Display Trajectory
   moveit_msgs::DisplayTrajectory displayTrajectory;
   displayTrajectory.model_id = "pr2";
@@ -240,7 +270,7 @@ void PR2MatlabBridgeClass::PrecompTrajCallback(const geometry_msgs::PoseArray ms
   {
       start_state.joint_state.position[j] = fullBodyTraj_msg.joint_trajectory.points[0].positions[j];  
   }
-  start_state.multi_dof_joint_state.header.frame_id = "odom_combined";
+  start_state.multi_dof_joint_state.header.frame_id = "map";
   start_state.multi_dof_joint_state.joint_names.push_back("world_joint");
   geometry_msgs::Transform startTransform;
   startTransform.translation.x = 0;
@@ -373,7 +403,8 @@ void PR2MatlabBridgeClass::callObjectHandling(const geometry_msgs::PoseStamped::
   { 
     ROS_INFO_STREAM("Object not yet in scene. Adding collision_object");   
     // Object unknown -> add to planning scene
-    collision_object.header.frame_id = group_->getPlanningFrame();
+    // collision_object.header.frame_id = group_->getPlanningFrame();
+    collision_object.header.frame_id = "/map";
     /* The id of the object is used to identify it. */
     collision_object.id = object_name;  
     /* A pose for the box (specified relative to frame_id) */
@@ -382,7 +413,7 @@ void PR2MatlabBridgeClass::callObjectHandling(const geometry_msgs::PoseStamped::
    
     
     //shapes::Mesh* obj_shape = shapes::createMeshFromResource("file:///home/twelsche/code/PR2/SimTrak/src/simtrack/data/object_models/" + object_name +"_Simplified/"+object_name+".obj");
-    shapes::Mesh* obj_shape = shapes::createMeshFromResource("file:///home/twelsche/code/PR2/SimTrak/src/simtrack/data/object_models/" + object_name +"/"+object_name+".obj");
+    shapes::Mesh* obj_shape = shapes::createMeshFromResource("file:///home/twelsche/code/PR2/SimTrak/src/simtrack/data/object_models/" + object_name +"/"+object_name+".ply");
     if (!obj_shape)
     {
       // assimp can't load mesh off kallaxDrawer, insert box instead
@@ -451,20 +482,9 @@ void PR2MatlabBridgeClass::allow_obj_collision(const std::string object_name)
         //extend the last column of the matrix
         currentACM.entry_values[i].enabled.push_back(true);
     }
-    newSceneDiff.is_diff = true;
+    newSceneDiff.is_diff = true;    
     newSceneDiff.allowed_collision_matrix = currentACM;
     planning_scene_diff_publisher_.publish(newSceneDiff);
   }   
-
-  if(!client_get_scene_.call(scene_srv))
-  {
-    ROS_WARN("Failed to call service /get_planning_scene");
-  }
-  else
-  {
-    ROS_INFO_STREAM("Modified scene!");
-    currentScene = scene_srv.response.scene;
-    moveit_msgs::AllowedCollisionMatrix currentACM = currentScene.allowed_collision_matrix;
-  }
 
 }
