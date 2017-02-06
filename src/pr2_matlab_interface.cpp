@@ -34,7 +34,7 @@ PR2MatlabBridgeClass::PR2MatlabBridgeClass(ros::NodeHandle n)
   // Start subscriber for the gripperState 
   OCGripper_sub = n.subscribe("/PRCommunicator/OCGripper", 1, &PR2MatlabBridgeClass::ChangeGripperStateCallback,this);
   // Start subscriber for the Trajectory
-  Precomp_traj_sub = n.subscribe("/PRCommunicator/Precomp_Trajectory", 1, &PR2MatlabBridgeClass::PrecompTrajCallback,this);   
+  // Precomp_traj_sub = n.subscribe("/PRCommunicator/Precomp_Trajectory", 1, &PR2MatlabBridgeClass::PrecompTrajCallback,this);   
   // Start subscriber for the Requests
   PR2Request_sub = n.subscribe("/PRCommunicator/Request", 1, &PR2MatlabBridgeClass::RequestsCallback,this);
 
@@ -43,7 +43,7 @@ PR2MatlabBridgeClass::PR2MatlabBridgeClass(ros::NodeHandle n)
   //model_names.push_back("bowl");
   // model_names.push_back("muesli2");
   // model_names.push_back("KallaxDrawer2");
-  // model_names.push_back("Kallax_Tuer");
+  model_names.push_back("Kallax_Tuer");
   model_names.push_back("DoorModel");
 
   for (std::vector<std::string>::iterator it = model_names.begin(); it != model_names.end();it++) {
@@ -108,8 +108,8 @@ void PR2MatlabBridgeClass::update()
     //get the current transform for robot base
     try
     {
-    listener.lookupTransform("odom_combined", "torso_lift_link", ros::Time(0), transformTorso_);
-      // listener.lookupTransform("/map", "/torso_lift_link", ros::Time(0), transformTorso_);      
+    // listener.lookupTransform("odom_combined", "torso_lift_link", ros::Time(0), transformTorso_);
+      listener.lookupTransform("/map", "/torso_lift_link", ros::Time(0), transformTorso_);      
     }
     catch (tf::TransformException ex)
     {
@@ -397,6 +397,7 @@ void PR2MatlabBridgeClass::callObjectHandling(const geometry_msgs::PoseStamped::
     //collision_object.primitive_poses.push_back(obj_pose);
     collision_object.mesh_poses.push_back(obj_pose);    
     collision_object.operation = collision_object.MOVE;
+    collision_object.header.frame_id = "/map";
     ROS_INFO_STREAM("Object already in scene. Updating pose");
   } 
   else
@@ -448,7 +449,7 @@ void PR2MatlabBridgeClass::callObjectHandling(const geometry_msgs::PoseStamped::
   planning_scene_add.world.collision_objects.push_back(collision_object);
   planning_scene_add.is_diff = true;
   planning_scene_diff_publisher_.publish(planning_scene_add);
-  ROS_INFO_STREAM("Object added.");   
+  ROS_INFO_STREAM("Object updated.");   
   allow_obj_collision(object_name);
 }
 
