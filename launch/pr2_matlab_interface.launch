@@ -1,12 +1,10 @@
 <launch>
 
-   <!--  <include file="$(find pr2_moveit_config)/launch/move_group.launch">
-    </include> -->
-  <include file="$(find pr2_moveit_config)/launch/move_group.launch" />
+  <include file="$(find pr2_moveit_config)/launch/move_group.launch" /> 
 
 
   <!-- The semantic description that corresponds to the URDF -->
-  <param name="robot_description_semantic" textfile="$(find pr2_moveit_config)/config/pr2.srdf"/> 
+  <param name="robot_description_semantic" textfile="$(find pr2_moveit_config)/config/pr2.srdf"/>  
 
 
 

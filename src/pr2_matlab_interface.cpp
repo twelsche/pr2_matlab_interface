@@ -1,8 +1,10 @@
 // This Version executes the trajectory with the ee_imped_action:
 // http://wiki.ros.org/ee_cart_imped/Tutorials/Writing%20a%20Stiffness%20Controller%20%28C%2B%2B%29
 
-#include "/home/twelsche/catkin_ws/src/pr2_matlab_interface/include/pr2_matlab_interface/pr2_matlab_interface.h"
-#include "/home/twelsche/catkin_ws/src/pr2_matlab_interface/include/pr2_matlab_interface/iterative_time_parameterization_dmp.h"
+//#include "/home/twelsche/catkin_ws/src/pr2_matlab_interface/include/pr2_matlab_interface/pr2_matlab_interface.h"
+#include "/home/twelsche/catkin_lfd_ws/src/pr2_matlab_interface/include/pr2_matlab_interface/pr2_matlab_interface.h"
+//#include "/home/twelsche/catkin_ws/src/pr2_matlab_interface/include/pr2_matlab_interface/iterative_time_parameterization_dmp.h"
+#include "/home/twelsche/catkin_lfd_ws/src/pr2_matlab_interface/include/pr2_matlab_interface/iterative_time_parameterization_dmp.h"
 
 
 
@@ -57,6 +59,7 @@ PR2MatlabBridgeClass::PR2MatlabBridgeClass(ros::NodeHandle n)
   Gripper_Pos_pub = n.advertise<geometry_msgs::PoseStamped>("Gripper_Pose", 1,false);
   // Start publisher for Robot Torso_lift_link Pose as geometry_msgs/PoseStamped
   Torso_Pos_pub = n.advertise<geometry_msgs::PoseStamped>("Base_Pose", 1,false);
+  Marker_Pos_pub = n.advertise<geometry_msgs::PoseStamped>("Marker_Pose", 1,false);
   // Publisher for robotTrajectory
   TrajectoryPublisher = n.advertise<moveit_msgs::DisplayTrajectory>("RobotTrajectory",1,false);
   // Start moveit stuff
@@ -71,7 +74,7 @@ PR2MatlabBridgeClass::PR2MatlabBridgeClass(ros::NodeHandle n)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Controller startup in realtime                                                                                                                                                
+// Controller startup in realtime                                                                                                                                                
 bool PR2MatlabBridgeClass::start()
 {
   if (!ready_) {
@@ -124,6 +127,27 @@ void PR2MatlabBridgeClass::update()
     torso_position.pose.orientation.z  = transformTorso_.getRotation().z();
     torso_position.pose.orientation.w  = transformTorso_.getRotation().w();
     Torso_Pos_pub.publish(torso_position);
+
+
+    // get the current transform for /map to /marker0 
+    try
+    {
+    	listener.lookupTransform("/map", "/ar_marker_0", ros::Time(0), transformMarker_);
+    }
+    catch (tf::TransformException ex)
+    {
+    	ROS_ERROR("%s",ex.what());
+    }
+   
+    geometry_msgs::PoseStamped marker_position;
+    marker_position.pose.position.x  = transformMarker_.getOrigin().x();
+    marker_position.pose.position.y  = transformMarker_.getOrigin().y();
+    marker_position.pose.position.z  = transformMarker_.getOrigin().z();
+    marker_position.pose.orientation.x  = transformMarker_.getRotation().x();
+    marker_position.pose.orientation.y  = transformMarker_.getRotation().y();
+    marker_position.pose.orientation.z  = transformMarker_.getRotation().z();
+    marker_position.pose.orientation.w  = transformMarker_.getRotation().w();
+    Marker_Pos_pub.publish(marker_position);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

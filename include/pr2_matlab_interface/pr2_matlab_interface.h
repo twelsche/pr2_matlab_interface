@@ -67,6 +67,7 @@ private:
   // Publisher for the GripperPose, ObjectPointcloud
   ros::Publisher Gripper_Pos_pub;  
   ros::Publisher Torso_Pos_pub;
+  ros::Publisher Marker_Pos_pub;
   ros::Publisher ObjPointCloud_pub;
   ros::Publisher TrajectoryPublisher;
   ros::Publisher Test_Res_pub;
@@ -87,6 +88,7 @@ private:
   // tf listener
   tf::TransformListener listener;
   tf::StampedTransform transformTorso_;
+  tf::StampedTransform transformMarker_;
 
   // Object detection
   //ork_to_planning_scene_msgs::UpdatePlanningSceneFromOrkGoalConstPtr objectgoal;
